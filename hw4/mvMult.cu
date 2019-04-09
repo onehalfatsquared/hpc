@@ -12,6 +12,7 @@ void dp0(double* a, double* b, long N, double& dp) {
 	for (long i = 0; i < N; i++) {
 		sum += a[i]*b[i];
 	}
+	dp = sum;
 }
 
 void Check_CUDA_Error(const char *message){
