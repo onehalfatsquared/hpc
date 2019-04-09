@@ -127,7 +127,6 @@ int main() {
   cudaMallocHost((void **) &v, N * sizeof(double));
   //#pragma omp parallel for 
   for (long i = 0; i < N; i++) {
-  	printf("test\n");
     v[i] = 1.0/(i+1);
   }
 
@@ -165,6 +164,7 @@ int main() {
 
   //get error
   double errDP = fabs(dp_ref-dp);
+  printf("CPU = %f, GPU = %f", dp_ref, dp);
   printf("Dot product Error: %f", errDP);
 
 
