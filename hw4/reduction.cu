@@ -7,7 +7,6 @@ void reduction(double& sum_ref, double* a, long N){
   double sum = 0;
   #pragma omp parallel for schedule(static) reduction(+:sum)
   for (long i = 0; i < N; i++) {
-    printf("seg fault test\n");
     sum += a[i];
   }
   sum_ref = sum;
@@ -115,8 +114,8 @@ __global__ void reduction_kernel2(double* sum, const double* a, long N){
 }
 
 int main() {
-  //long N = (1UL<<10); //10 was 25
-  long N = 100;
+  long N = (1UL<<10); //10 was 25
+  //long N = 100;
 
   double* x;
   cudaMallocHost((void**)&x, N * sizeof(double));
