@@ -164,8 +164,8 @@ int main() {
 
   //get error
   double errDP = fabs(dp_ref-dp);
-  printf("CPU = %f, GPU = %f", dp_ref, dp);
-  printf("Dot product Error: %f", errDP);
+  printf("CPU = %f, GPU = %f\n", dp_ref, dp);
+  printf("Dot product Error: %f\n", errDP);
 
 
   //free memory
