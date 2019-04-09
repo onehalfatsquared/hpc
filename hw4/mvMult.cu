@@ -15,6 +15,18 @@ void dp0(double* a, double* b, long N, double& dp) {
 	dp = sum;
 }
 
+void mv0(double* a, double* v, long N, double* mult_ref) {
+	//compute mv product on cpu
+	double sum;
+	for (long i = 0; i < N; i++) {
+		sum = 0;
+		for (long j = 0; j <N; j++) {
+			sum += a[N*i+j]*v[j];
+		}
+		mult_ref[i] = sum;
+	}
+}
+
 void Check_CUDA_Error(const char *message){
   cudaError_t error = cudaGetLastError();
   if(error!=cudaSuccess) {
@@ -76,7 +88,7 @@ void dot(double* a, double* b, long N, double& dp) {
 	//call the multiplication kernel
 	mult_kernel<<<N/BLOCK_SIZE+1,BLOCK_SIZE>>>(a, b, c_d, N);
 
-	//call reduction kernel on c
+	//call reduction kernel on c - from class code
 	double *y_d;
   cudaMalloc(&y_d, ((N+BLOCK_SIZE-1)/BLOCK_SIZE)*sizeof(double));
 	double* sum_d = y_d;
@@ -89,19 +101,32 @@ void dot(double* a, double* b, long N, double& dp) {
     sum_d += Nb;
   }
 
-
+  //copy dot product to host
   cudaMemcpyAsync(&dp, sum_d, 1*sizeof(double), cudaMemcpyDeviceToHost);
   cudaDeviceSynchronize();
-
-
-
-
 
 	//free memory
 	cudaFree(c_d);
 }
 
+void mvProd(double* a, double* v, long N, double* mult) {
+	//call cuda kernels to do matrix vector product
+	//call dot bewteen each row and v
 
+	double *r_d;
+	cudaMalloc(&r_d, N*sizeof(double));
+
+	double sum;
+
+	for (long i = 0; i < N; i++) {
+		sum = 0;
+		for (long j = 0; j < N; j++) {
+			r_d[j] = a[N*i+j];
+		}
+		dot(r_d,v,N,sum);
+		mult[i] = sum;
+	}
+}
 
 
 
@@ -145,16 +170,15 @@ int main() {
   dp0(v,v,N,dp_ref);
 
   //get a reference solution for matrix vector product
-  double* mult;
   double* mult_ref;
   cudaMallocHost((void **) &mult_ref, N * sizeof(double));
-  //mv0(a, v, N, mult_ref);
+  mv0(a, v, N, mult_ref);
 
   //copy memory to gpu
-  double *v_d, *a_d, *mult_d;
+  double *v_d, *a_d, *mult;
   cudaMalloc(&v_d, N*sizeof(double));
   cudaMalloc(&a_d, N*N*sizeof(double));
-  cudaMalloc(&mult_d, N*sizeof(double));
+  cudaMallocHost(&mult, N*sizeof(double));
 
   cudaMemcpyAsync(v_d, v, N*sizeof(double), cudaMemcpyHostToDevice);
   cudaMemcpyAsync(a_d, a, N*N*sizeof(double), cudaMemcpyHostToDevice);
@@ -163,10 +187,15 @@ int main() {
   //do dot product on gpu
   dot(v_d, v_d, N, dp);
 
+  //do matrix vector product on gpu
+  mvProd(a_d, v_d, N, mult);
+
   //get error
   double errDP = fabs(dp_ref-dp);
-  printf("CPU = %f, GPU = %f\n", dp_ref, dp);
+  double errMV = 0;
+  for (long i = 0; i < N; i++) errMV = std::max(errMV, fabs(mult[i]-mult_ref[i]));
   printf("Dot product Error: %f\n", errDP);
+	printf("Matrix-Vector Product Error: %f\n", errMV);
 
 
   //free memory
@@ -174,7 +203,7 @@ int main() {
   cudaFree(a_d);
   cudaFreeHost(v);
   cudaFreeHost(a);
-  cudaFreeHost(mult_ref); cudaFreeHost(mult);
+  cudaFreeHost(mult_ref); 
 
   
 
