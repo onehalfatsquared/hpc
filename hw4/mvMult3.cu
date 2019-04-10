@@ -119,6 +119,8 @@ __global__ void mvKernel(double* a, double* v, long N, double* c) {
 			c[row] += a[row*N+i] * v[i];
 		}
 	}
+
+	__syncthreads();
 }
 
 
@@ -131,7 +133,7 @@ void mvProd(double* a, double* v, long N, double* mult) {
 
 	//allocate a matrix to store matrix row with vector products element wise
 	double *c_d;
-	cudaMalloc(&c_d, N*N*sizeof(double));
+	cudaMalloc(&c_d, N*sizeof(double));
 
 	mvKernel<<<N/BLOCK_SIZE+1,BLOCK_SIZE>>>(a, v, N, c_d);
 
