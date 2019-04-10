@@ -110,83 +110,21 @@ void dot(double* a, double* b, long N, double& dp) {
 }
 
 
+__global__ void mvKernel(double* a, double* v, long N, double* c) {
 
+	int col = blockIdx.x * blockDim.x + threadIdx.x;
+	int row = blockIdx.y * blockDim.y + threadIdx.y;
 
-
-
-__global__ void Mreduction_kernel2(double* sum, const double* a, int row, long N){
-	//reduction kernel for summing
-  __shared__ double smem[BLOCK_SIZE];
-  int idx = (blockIdx.x) * blockDim.x + threadIdx.x;
-
-  if (idx < N) smem[threadIdx.x] = a[N*row+idx];
-  else smem[threadIdx.x] = 0;
-
-  __syncthreads();
-  if (threadIdx.x < 512) smem[threadIdx.x] += smem[threadIdx.x + 512];
-  __syncthreads();
-  if (threadIdx.x < 256) smem[threadIdx.x] += smem[threadIdx.x + 256];
-  __syncthreads();
-  if (threadIdx.x < 128) smem[threadIdx.x] += smem[threadIdx.x + 128];
-  __syncthreads();
-  if (threadIdx.x <  64) smem[threadIdx.x] += smem[threadIdx.x +  64];
-  __syncthreads();
-  if (threadIdx.x <  32) {
-    smem[threadIdx.x] += smem[threadIdx.x +  32];
-    __syncwarp();
-    smem[threadIdx.x] += smem[threadIdx.x +  16];
-    __syncwarp();
-    smem[threadIdx.x] += smem[threadIdx.x +   8];
-    __syncwarp();
-    smem[threadIdx.x] += smem[threadIdx.x +   4];
-    __syncwarp();
-    smem[threadIdx.x] += smem[threadIdx.x +   2];
-    __syncwarp();
-    if (threadIdx.x == 0) sum[blockIdx.x] = smem[0] + smem[1];
-  }
-}
-
-
-
-
-__global__ void Mmult_kernel(double* a, int row, double* v, double* c, long N) {
-	//cuda kernel to compute pairwise multiplication of a and b
-	int idx = blockIdx.x * blockDim.x + threadIdx.x;
-	if (idx < N) {
-		c[N*row+idx] = a[N*row+idx] * v[idx];
+	if (row < N && col < N) {
+		for (int i = 0; i < N; i++) {
+			c[row] += a[row*N+i] * v[i];
+		}
 	}
 }
 
-void Mdot(double* a, int row, double* v, long N, double& dp) {
-	//take in a and b vectors, apply dot product and reduction kernels. 
 
-	//allocate a vector for the product
-	double *c_d;
-	cudaMalloc(&c_d, N*sizeof(double));
 
-	//call the multiplication kernel
-	Mmult_kernel<<<N/BLOCK_SIZE+1,BLOCK_SIZE>>>(a, row, v, c_d, N);
 
-	//call reduction kernel on c - from class code
-	double *y_d;
-  cudaMalloc(&y_d, ((N+BLOCK_SIZE-1)/BLOCK_SIZE)*sizeof(double));
-	double* sum_d = y_d;
-  long Nb = (N+BLOCK_SIZE-1)/(BLOCK_SIZE);
-  reduction_kernel2<<<Nb,BLOCK_SIZE>>>(sum_d, c_d, N);
-  while (Nb > 1) {
-    long N = Nb;
-    Nb = (Nb+BLOCK_SIZE-1)/(BLOCK_SIZE);
-    reduction_kernel2<<<Nb,BLOCK_SIZE>>>(sum_d + Nb, sum_d, N);
-    sum_d += Nb;
-  }
-
-  //copy dot product to host
-  cudaMemcpyAsync(&dp, sum_d, 1*sizeof(double), cudaMemcpyDeviceToHost);
-  cudaDeviceSynchronize();
-
-	//free memory
-	cudaFree(c_d);
-}
 
 void mvProd(double* a, double* v, long N, double* mult) {
 	//call cuda kernels to do matrix vector product
@@ -196,28 +134,11 @@ void mvProd(double* a, double* v, long N, double* mult) {
 	double *c_d;
 	cudaMalloc(&c_d, N*N*sizeof(double));
 
-	double *y_d;
-	cudaMalloc(&y_d, ((N+BLOCK_SIZE-1)/BLOCK_SIZE)*sizeof(double));
+	mvKernel<<<N/BLOCK_SIZE+1,BLOCK_SIZE>>>(a, v, N, c_d);
 
-	double *sum_d;
-
-	for (long row = 0; row < N; row++) {
-		Mmult_kernel<<<N/BLOCK_SIZE+1,BLOCK_SIZE>>>(a, row, v, c_d, N);
-		
-		//reduction kernel
-		/*
-		sum_d = y_d;
-	  long Nb = (N+BLOCK_SIZE-1)/(BLOCK_SIZE);
-	  Mreduction_kernel2<<<Nb,BLOCK_SIZE>>>(sum_d, c_d, row, N);
-	  while (Nb > 1) {
-	    long N = Nb;
-	    Nb = (Nb+BLOCK_SIZE-1)/(BLOCK_SIZE);
-	    Mreduction_kernel2<<<Nb,BLOCK_SIZE>>>(sum_d + N, sum_d, row, N);
-	    sum_d += N;
-	  }
-	  mult[row] = *sum_d;
-	  */
-	}
+	//copy dot product to host
+  cudaMemcpyAsync(&mult, c_d, N*sizeof(double), cudaMemcpyDeviceToHost);
+  cudaDeviceSynchronize();
 
 	//free memory
 	cudaFree(c_d);
