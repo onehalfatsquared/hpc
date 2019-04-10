@@ -211,8 +211,8 @@ void mvProd(double* a, double* v, long N, double* mult) {
 	  while (Nb > 1) {
 	    long N = Nb;
 	    Nb = (Nb+BLOCK_SIZE-1)/(BLOCK_SIZE);
-	    Mreduction_kernel2<<<Nb,BLOCK_SIZE>>>(sum_d + Nb, sum_d, row, N);
-	    sum_d += Nb;
+	    Mreduction_kernel2<<<Nb,BLOCK_SIZE>>>(sum_d + N, sum_d, row, N);
+	    sum_d += N;
 	  }
 	  mult[row] = *sum_d;
 	}
