@@ -112,10 +112,9 @@ void dot(double* a, double* b, long N, double& dp) {
 
 __global__ void mvKernel(double* a, double* v, long N, double* c) {
 
-	int col = blockIdx.x * blockDim.x + threadIdx.x;
-	int row = blockIdx.y * blockDim.y + threadIdx.y;
+	int row = blockIdx.x * blockDim.x + threadIdx.x;
 
-	if (row < N && col < N) {
+	if (row < N) {
 		for (int i = 0; i < N; i++) {
 			c[row] += a[row*N+i] * v[i];
 		}
