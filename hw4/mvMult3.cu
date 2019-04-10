@@ -112,10 +112,11 @@ void dot(double* a, double* b, long N, double& dp) {
 
 __global__ void mvKernel(double* a, double* v, long N, double* c) {
 
-	int row = blockIdx.x * blockDim.x + threadIdx.x;
+	long row = blockIdx.x * blockDim.x + threadIdx.x;
 
 	if (row < N) {
-		for (int i = 0; i < N; i++) {
+		c[row] = 0;
+		for (long i = 0; i < N; i++) {
 			c[row] += a[row*N+i] * v[i];
 		}
 	}
@@ -138,7 +139,7 @@ void mvProd(double* a, double* v, long N, double* mult) {
 	mvKernel<<<N/BLOCK_SIZE+1,BLOCK_SIZE>>>(a, v, N, c_d);
 
 	//copy dot product to host
-  cudaMemcpyAsync(&mult, c_d, N*sizeof(double), cudaMemcpyDeviceToHost);
+  cudaMemcpyAsync(mult, c_d, N*sizeof(double), cudaMemcpyDeviceToHost);
   cudaDeviceSynchronize();
 
 	//free memory
@@ -148,7 +149,7 @@ void mvProd(double* a, double* v, long N, double* mult) {
 
 
 int main() {
-  long N = (1UL<<10); //10 was 25
+  long N = (1UL<<13); //10 was 25
   //long N = 100;
 
   //initialize vector
