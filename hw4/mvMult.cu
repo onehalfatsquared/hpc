@@ -186,12 +186,16 @@ int main() {
   //get a reference solution for dot product
   double dp;
   double dp_ref;
+  double tt = omp_get_wtime();
   dp0(v,v,N,dp_ref);
+  printf("CPU Bandwidth Dot Product = %f GB/s\n", 2*N*sizeof(double) / (omp_get_wtime()-tt)/1e9);
 
   //get a reference solution for matrix vector product
   double* mult_ref;
   cudaMallocHost((void **) &mult_ref, N * sizeof(double));
+  tt = omp_get_wtime();
   mv0(a, v, N, mult_ref);
+  printf("CPU Bandwidth Matrix-Vector Product = %f GB/s\n", 2*N*N*sizeof(double) / (omp_get_wtime()-tt)/1e9);
 
   //copy memory to gpu
   double *v_d, *a_d, *mult;
@@ -204,10 +208,14 @@ int main() {
   cudaDeviceSynchronize();
 
   //do dot product on gpu
+  tt = omp_get_wtime();
   dot(v_d, v_d, N, dp);
+  printf("GPU Bandwidth Dot Product = %f GB/s\n", 2*N*sizeof(double) / (omp_get_wtime()-tt)/1e9);
 
   //do matrix vector product on gpu
+  tt = omp_get_wtime();
   mvProd(a_d, v_d, N, mult);
+  printf("GPU Bandwidth Matrix-Vector Product = %f GB/s\n", 2*N*N*sizeof(double) / (omp_get_wtime()-tt)/1e9);
 
   //get error
   double errDP = fabs(dp_ref-dp);
