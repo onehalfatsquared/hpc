@@ -109,63 +109,45 @@ void dot(double* a, double* b, long N, double& dp) {
 	cudaFree(c_d);
 }
 
-__global__ void Mmult_kernel(double* a, int row, double* v, double* c, long N) {
-	//cuda kernel to compute pairwise multiplication of a and b
-	int idx = blockIdx.x * blockDim.x + threadIdx.x;
-	if (idx < N) {
-		c[idx] = a[N*row+idx] * v[idx];
+
+__global__ void mvKernel(double* a, double* v, long N, double* c) {
+  //kernel to compute matrix - vector product
+	long row = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if (row < N) {
+		c[row] = 0;
+		for (long i = 0; i < N; i++) {
+			c[row] += a[row*N+i] * v[i];
+		}
 	}
+
+	__syncthreads();
 }
 
-void Mdot(double* a, int row, double* v, long N, double& dp) {
-	//take in a and b vectors, apply dot product and reduction kernels. 
 
-	//allocate a vector for the product
+
+void mvProd(double* a, double* v, long N, double* mult) {
+	//call cuda kernels to do matrix vector product
+
+	//allocate a matrix to store matrix row with vector products element wise
 	double *c_d;
 	cudaMalloc(&c_d, N*sizeof(double));
 
-	//call the multiplication kernel
-	Mmult_kernel<<<N/BLOCK_SIZE+1,BLOCK_SIZE>>>(a, row, v, c_d, N);
+  //call the kernel
+	mvKernel<<<N/BLOCK_SIZE+1,BLOCK_SIZE>>>(a, v, N, c_d);
 
-	//call reduction kernel on c - from class code
-	double *y_d;
-  cudaMalloc(&y_d, ((N+BLOCK_SIZE-1)/BLOCK_SIZE)*sizeof(double));
-	double* sum_d = y_d;
-  long Nb = (N+BLOCK_SIZE-1)/(BLOCK_SIZE);
-  reduction_kernel2<<<Nb,BLOCK_SIZE>>>(sum_d, c_d, N);
-  while (Nb > 1) {
-    long N = Nb;
-    Nb = (Nb+BLOCK_SIZE-1)/(BLOCK_SIZE);
-    reduction_kernel2<<<Nb,BLOCK_SIZE>>>(sum_d + Nb, sum_d, N);
-    sum_d += Nb;
-  }
-
-  //copy dot product to host
-  cudaMemcpyAsync(&dp, sum_d, 1*sizeof(double), cudaMemcpyDeviceToHost);
+	//copy to host
+  cudaMemcpyAsync(mult, c_d, N*sizeof(double), cudaMemcpyDeviceToHost);
   cudaDeviceSynchronize();
 
 	//free memory
 	cudaFree(c_d);
 }
 
-void mvProd(double* a, double* v, long N, double* mult) {
-	//call cuda kernels to do matrix vector product
-	//call dot bewteen each row and v
-
-	double sum;
-
-	for (long i = 0; i < N; i++) {
-		sum = 0;
-		Mdot(a ,i, v,N,sum);
-		mult[i] = sum;
-	}
-}
-
 
 
 int main() {
-  long N = (1UL<<10); //10 was 25
-  //long N = 100;
+  long N = (1UL<<14); 
 
   //initialize vector
   double *v;
@@ -232,7 +214,6 @@ int main() {
   cudaFreeHost(a);
   cudaFreeHost(mult_ref); 
 
-  
-
+  //return 
   return 0;
 }
