@@ -109,38 +109,57 @@ void dot(double* a, double* b, long N, double& dp) {
 	cudaFree(c_d);
 }
 
+__global__ void Mmult_kernel(double* a, int row, double* v, double* c, long N) {
+	//cuda kernel to compute pairwise multiplication of a and b
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx < N) {
+		c[idx] = a[N*row+idx] * v[idx];
+	}
+}
+
+void Mdot(double* a, int row, double* v, long N, double& dp) {
+	//take in a and b vectors, apply dot product and reduction kernels. 
+
+	//allocate a vector for the product
+	double *c_d;
+	cudaMalloc(&c_d, N*sizeof(double));
+
+	//call the multiplication kernel
+	Mmult_kernel<<<N/BLOCK_SIZE+1,BLOCK_SIZE>>>(a, row, v, c_d, N);
+
+	//call reduction kernel on c - from class code
+	double *y_d;
+  cudaMalloc(&y_d, ((N+BLOCK_SIZE-1)/BLOCK_SIZE)*sizeof(double));
+	double* sum_d = y_d;
+  long Nb = (N+BLOCK_SIZE-1)/(BLOCK_SIZE);
+  reduction_kernel2<<<Nb,BLOCK_SIZE>>>(sum_d, c_d, N);
+  while (Nb > 1) {
+    long N = Nb;
+    Nb = (Nb+BLOCK_SIZE-1)/(BLOCK_SIZE);
+    reduction_kernel2<<<Nb,BLOCK_SIZE>>>(sum_d + Nb, sum_d, N);
+    sum_d += Nb;
+  }
+
+  //copy dot product to host
+  cudaMemcpyAsync(&dp, sum_d, 1*sizeof(double), cudaMemcpyDeviceToHost);
+  cudaDeviceSynchronize();
+
+	//free memory
+	cudaFree(c_d);
+}
+
 void mvProd(double* a, double* v, long N, double* mult) {
 	//call cuda kernels to do matrix vector product
 	//call dot bewteen each row and v
-
-	double *r_d;
-	cudaMalloc(&r_d, N*sizeof(double));
 
 	double sum;
 
 	for (long i = 0; i < N; i++) {
 		sum = 0;
-		for (long j = 0; j < N; j++) {
-			r_d[j] = a[N*i+j];
-		}
-		dot(r_d,v,N,sum);
+		Mdot(a ,i, v,N,sum);
 		mult[i] = sum;
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
