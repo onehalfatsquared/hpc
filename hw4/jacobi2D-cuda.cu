@@ -211,13 +211,15 @@ __global__ void JacobiKernel(int N, double* u, double* f, double* guess, double 
 
 
 
-double* jacobiG(int N, double* f, int max_iter, double* guess) {
+void jacobiG(int N, double* f, int max_iter, double* guess) {
 	//apply jacobi iteration on the gpu
 
 	//initialize update 
 	double *u_d, *f_d, *guess_d;
   cudaMalloc(&u_d, N*N*sizeof(double));
   cudaMalloc(&f_d, N*sizeof(double));
+  cudaMalloc(&guess_d, N*N*sizeof(double));
+  printf("cuda malloc done\n");
 
   cudaMemcpyAsync(u_d, guess, N*N*sizeof(double), cudaMemcpyHostToDevice);
   cudaMemcpyAsync(guess_d, guess, N*N*sizeof(double), cudaMemcpyHostToDevice);
@@ -242,9 +244,6 @@ double* jacobiG(int N, double* f, int max_iter, double* guess) {
 
   //free cuda memory
   cudaFree(u_d); cudaFree(f_d); cudaFree(guess_d);
-
-  //return the solution in guess
-	return guess;
 }
 
 
@@ -279,23 +278,32 @@ int main(int argc, char** argv) {
   double r = computeRes(N, sol, f);
   printf("CPU Residual : %3f\n", r);
 
-  //initialize initial guess to zeros and rhs to ones
+  //free u
+  free(u);
+
+  //initialize initial guess to zeros and rhs to ones for gpu
+  //double *u;
+  cudaMalloc(&u, N*N*sizeof(double));
 	for (int i = 0; i < N*N; i++) u[i] = 0;
 	for (int i = 0; i < N*N; i++) f[i] = 1;
+
+		for (int i = 0; i < N*N; i++) printf("%f\n", u[i]);
 
   //do on gpu
   //apply the iterations, time
   t.tic();
-  sol = jacobiG(N, f, max_iter, u);
+  jacobiG(N, f, max_iter, u);
   time = t.toc();
   printf("GPU Time taken: %3f seconds\n", time);
 
   //compute a residual as a check
-  r = computeRes(N, sol, f);
+  r = computeRes(N, u, f);
   printf("GPU Residual : %3f\n", r);
 
+  for (int i = 0; i < N*N; i++) printf("%f\n", u[i]);
+
   //free the memory
-  free(f); free(sol);
+  free(f); 
 
   return 0;
 }
