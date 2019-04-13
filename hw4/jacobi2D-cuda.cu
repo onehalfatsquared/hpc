@@ -9,7 +9,7 @@
 	#include <omp.h>
 #endif
 
-#define BLOCK_SIZE 5
+#define BLOCK_SIZE 1024
 
 int toIndex(int row, int column, int N) {
 	//maps the (i,j) entry of u or f to 1d array index
@@ -179,6 +179,7 @@ double computeRes(int N, double* u, double* f) {
 
 __global__ void JacobiKernel(int N, double* u, double* f, double* guess, double H) {
 	//kernel to do jacobi update
+
 	int row, col;
 	row = blockIdx.x * blockDim.x + threadIdx.x;
 	col = blockIdx.y * blockDim.y + threadIdx.y;
@@ -206,7 +207,6 @@ __global__ void JacobiKernel(int N, double* u, double* f, double* guess, double 
 			right = guess[N*(col+1)+row];
 
 		u[N*col+row] = 0.25*(H*f[N*col+row] + up + down +left +right);
-		printf("l %f, r %f, u %f, d %f, u %f", left,right,down,up,u[N*col+row]);
 	}
 }
 
@@ -218,12 +218,9 @@ void jacobiG(int N, double* f, int max_iter, double* guess) {
 
 	//initialize update 
 	double *u_d, *f_d, *guess_d;
-	printf("before malloc\n");
   cudaMalloc(&u_d, N*N*sizeof(double));
-	printf("u_d malloc done\n");
   cudaMalloc(&f_d, N*N*sizeof(double));
   cudaMalloc(&guess_d, N*N*sizeof(double));
-  printf("cuda malloc done\n");
 
   cudaMemcpyAsync(u_d, guess, N*N*sizeof(double), cudaMemcpyHostToDevice);
   cudaMemcpyAsync(guess_d, guess, N*N*sizeof(double), cudaMemcpyHostToDevice);
@@ -233,6 +230,7 @@ void jacobiG(int N, double* f, int max_iter, double* guess) {
 	//set the interval length squared for use in iteration
 	double H = 1.0 / ((N+1) * (N+1)); //H = h^2
 
+	//setup the grid of threads
 	dim3 dimBlock(BLOCK_SIZE,BLOCK_SIZE);
 	dim3 dimGrid(N/BLOCK_SIZE+1, N/BLOCK_SIZE+1);
 
@@ -289,9 +287,7 @@ int main(int argc, char** argv) {
 
   //initialize initial guess to zeros and rhs to ones for gpu
   //double *u;
-	printf("cuda malloc in main start\n");
   cudaMallocHost(&u, N*N*sizeof(double));
-	printf("cuda malloc in main done\n");
 	for (int i = 0; i < N*N; i++) u[i] = 0;
 	for (int i = 0; i < N*N; i++) f[i] = 1;
 
