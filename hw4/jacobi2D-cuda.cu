@@ -184,10 +184,30 @@ __global__ void JacobiKernel(int N, double* u, double* f, double* guess, double 
 	long row = blockIdx.x * blockDim.x + threadIdx.x;
 	long col = blockIdx.y * blockDim.y + threadIdx.y;
 
-	u[N*col+row] = 0.25*(H*f[N*col+row] + guess[N*col+row-1] + guess[N*col+row+1] 
-		+ guess[N*(col-1)+row] + guess[N*(col+1)+row]);
+	double left, right, up, down;
 
+	if (row < N && col < N) {
+		if (row == 0) 
+			up = 0; 
+		else 
+			up = guess[N*col+row-1];
+		if (row == N-1) 
+			down = 0; 
+		else 
+			down = guess[N*col+row+1];
+		if (col == 0) 
+			left = 0;
+		else 
+			left = guess[N*(col-1)+row];
+		if (col == N-1) 
+			right = 0; 
+		else 
+			right = guess[N*(col+1)+row];
+
+		u[N*col+row] = 0.25*(H*f[N*col+row] + up + down +left +right);
+	}
 }
+
 
 
 
@@ -258,6 +278,10 @@ int main(int argc, char** argv) {
   //compute a residual as a check
   double r = computeRes(N, sol, f);
   printf("CPU Residual : %3f\n", r);
+
+  //initialize initial guess to zeros and rhs to ones
+	for (int i = 0; i < N*N; i++) u[i] = 0;
+	for (int i = 0; i < N*N; i++) f[i] = 1;
 
   //do on gpu
   //apply the iterations, time
