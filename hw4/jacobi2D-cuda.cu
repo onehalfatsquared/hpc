@@ -96,7 +96,7 @@ double* jacobi(int N, double* f, int max_iter, double* guess) {
 	return u;
 }
 
-double* jacobiP(int N, double* f, int max_iter, double* guess) {
+void jacobiP(int N, double* f, int max_iter, double* guess) {
   //apply jacobi iteration to solve system - parallel
 
   //initialize storage to do update - left, right, up, and down of (i,j)
@@ -129,8 +129,7 @@ double* jacobiP(int N, double* f, int max_iter, double* guess) {
 	}
 
 	//free the guess memory and return the solution
-	free(guess);
-	return u;
+	free(u);
 }
 
 double* applyA(int N, double* u) {
@@ -261,7 +260,6 @@ int main(int argc, char** argv) {
   // allocate memory for solution and rhs. 
 	double* u = (double*) malloc(N * N * sizeof(double)); // vector length N^2
 	double* f = (double*) malloc(N * N * sizeof(double)); // vector length N^2
-	double* sol = (double*) malloc(N * N * sizeof(double)); // vector length N^2
 
 	//initialize initial guess to zeros and rhs to ones
 	for (int i = 0; i < N*N; i++) u[i] = 0;
@@ -270,12 +268,12 @@ int main(int argc, char** argv) {
 	//apply the iterations, time
 	Timer t;
   t.tic();
-  sol = jacobiP(N, f, max_iter, u);
+  jacobiP(N, f, max_iter, u);
   double time = t.toc();
   printf("CPU Time taken: %3f seconds\n", time);
 
   //compute a residual as a check
-  double r = computeRes(N, sol, f);
+  double r = computeRes(N, u, f);
   printf("CPU Residual : %3f\n", r);
 
   //free u
