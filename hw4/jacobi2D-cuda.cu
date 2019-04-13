@@ -9,7 +9,7 @@
 	#include <omp.h>
 #endif
 
-#define BLOCK_SIZE 1024
+#define BLOCK_SIZE 5
 
 int toIndex(int row, int column, int N) {
 	//maps the (i,j) entry of u or f to 1d array index
@@ -179,13 +179,15 @@ double computeRes(int N, double* u, double* f) {
 
 __global__ void JacobiKernel(int N, double* u, double* f, double* guess, double H) {
 	//kernel to do jacobi update
-
-	long row = blockIdx.x * blockDim.x + threadIdx.x;
-	long col = blockIdx.y * blockDim.y + threadIdx.y;
+	int row, col;
+	row = blockIdx.x * blockDim.x + threadIdx.x;
+	col = blockIdx.y * blockDim.y + threadIdx.y;
 
 	double left, right, up, down;
 
+
 	if (row < N && col < N) {
+		printf("row %d, col %d\n", row, col);
 		if (row == 0) 
 			up = 0; 
 		else 
@@ -204,6 +206,7 @@ __global__ void JacobiKernel(int N, double* u, double* f, double* guess, double 
 			right = guess[N*(col+1)+row];
 
 		u[N*col+row] = 0.25*(H*f[N*col+row] + up + down +left +right);
+		printf("l %f, r %f, u %f, d %f, u %f", left,right,down,up,u[N*col+row]);
 	}
 }
 
@@ -215,8 +218,10 @@ void jacobiG(int N, double* f, int max_iter, double* guess) {
 
 	//initialize update 
 	double *u_d, *f_d, *guess_d;
+	printf("before malloc\n");
   cudaMalloc(&u_d, N*N*sizeof(double));
-  cudaMalloc(&f_d, N*sizeof(double));
+	printf("u_d malloc done\n");
+  cudaMalloc(&f_d, N*N*sizeof(double));
   cudaMalloc(&guess_d, N*N*sizeof(double));
   printf("cuda malloc done\n");
 
@@ -228,9 +233,12 @@ void jacobiG(int N, double* f, int max_iter, double* guess) {
 	//set the interval length squared for use in iteration
 	double H = 1.0 / ((N+1) * (N+1)); //H = h^2
 
+	dim3 dimBlock(BLOCK_SIZE,BLOCK_SIZE);
+	dim3 dimGrid(N/BLOCK_SIZE+1, N/BLOCK_SIZE+1);
+
 	for (int k = 0; k < max_iter; k++) {
 		//call the kernel
-		JacobiKernel<<<N/BLOCK_SIZE+1,BLOCK_SIZE>>>(N, u_d, f_d, guess_d, H);
+		JacobiKernel<<<dimGrid,dimBlock>>>(N, u_d, f_d, guess_d, H);
 
 		//copy u into guess
 		cudaMemcpyAsync(guess_d, u_d, N*N*sizeof(double), cudaMemcpyDeviceToDevice);
@@ -281,7 +289,9 @@ int main(int argc, char** argv) {
 
   //initialize initial guess to zeros and rhs to ones for gpu
   //double *u;
-  cudaMalloc(&u, N*N*sizeof(double));
+	printf("cuda malloc in main start\n");
+  cudaMallocHost(&u, N*N*sizeof(double));
+	printf("cuda malloc in main done\n");
 	for (int i = 0; i < N*N; i++) u[i] = 0;
 	for (int i = 0; i < N*N; i++) f[i] = 1;
 
@@ -301,7 +311,7 @@ int main(int argc, char** argv) {
   for (int i = 0; i < N*N; i++) printf("%f\n", u[i]);
 
   //free the memory
-  free(f); 
+  free(f); cudaFree(u); 
 
   return 0;
 }
