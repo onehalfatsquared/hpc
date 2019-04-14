@@ -9,7 +9,7 @@
 	#include <omp.h>
 #endif
 
-#define BLOCK_SIZE 1024
+#define BLOCK_SIZE 32
 
 int toIndex(int row, int column, int N) {
 	//maps the (i,j) entry of u or f to 1d array index
@@ -56,7 +56,15 @@ void setDirections(int i, int j, int N, double* vec, double& left, double& right
 	//handle middle case
 	else {
 		down = vec[toIndex(i-1, j, N)]; up = vec[toIndex(i+1, j, N)];
-		left = vec[toIndex(i, j-1, N)]; right = vec[toIndex(i, j+1, N)];
+		if (j == 0) {
+			left = 0; right = vec[toIndex(i, j+1, N)];
+		}
+		else if (j == N-1) {
+			right = 0; left = vec[toIndex(i, j-1, N)];
+		}
+		else {
+			left = vec[toIndex(i, j-1, N)]; right = vec[toIndex(i, j+1, N)];
+		}
 	}
 }
 
@@ -188,7 +196,6 @@ __global__ void JacobiKernel(int N, double* u, double* f, double* guess, double 
 
 
 	if (row < N && col < N) {
-		printf("row %d, col %d\n", row, col);
 		if (row == 0) 
 			up = 0; 
 		else 
@@ -291,8 +298,6 @@ int main(int argc, char** argv) {
 	for (int i = 0; i < N*N; i++) u[i] = 0;
 	for (int i = 0; i < N*N; i++) f[i] = 1;
 
-		for (int i = 0; i < N*N; i++) printf("%f\n", u[i]);
-
   //do on gpu
   //apply the iterations, time
   t.tic();
@@ -303,8 +308,6 @@ int main(int argc, char** argv) {
   //compute a residual as a check
   r = computeRes(N, u, f);
   printf("GPU Residual : %3f\n", r);
-
-  for (int i = 0; i < N*N; i++) printf("%f\n", u[i]);
 
   //free the memory
   free(f); cudaFree(u); 
