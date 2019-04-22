@@ -1,7 +1,6 @@
-#include <cstdlib>
 #include <stdio.h>
-#include <iostream>
 #include <mpi.h>
+#include <stdlib.h>
 
 double time_cycle(long N, long Nsize, MPI_Comm comm) {
 	//declare ranks for mpi
