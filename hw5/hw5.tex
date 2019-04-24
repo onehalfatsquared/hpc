@@ -44,7 +44,7 @@
 \large \textbf{%%
 High Performance Computing \\
 Anthony Trubiano \\
-Assignment 4 (due April 15, 2019) }
+Assignment 5 (due April 29, 2019) }
 \end{center}
 
 % ****************************
@@ -55,46 +55,45 @@ precision operations per cycle, the theoretical max flop rate would be about 35.
 \begin{enumerate}
 % --------------------------
 
-\item {\bf Matrix Vector Multiplication on a GPU} We perform a matrix vector multiplication both on a CPU and GPU and compare the bandwidth achieved on each. We compare CPU and GPU results to check for errors. We use a vector size of $N = 16384$. The CPU implementation uses OpenMP on my machine with $8$ threads.
+\item {\bf MPI Ring Communication} Ring communication was implemented using MPI. The 0th process is given the value $0$, which then gets passed cyclically to each process and gets that process's rank added to it. This is repeated $N$ times, and the result is compared to the expected solution, $NM(M-1)/2$, where $M$ is the number of processes. We use this to estimate the latency of message passing, and then pass a $2$ MB array to test bandwidth. We use $N=10000$ and get the following results:
 
 \begin{table}[h!] 
 	\centering
-	\begin{tabular}{c | c}
-		Machine & Bandwidth (GB/s)  \\
+	\begin{tabular}{c | c c}
+		Processes & Latency (ms) & Bandwidth (GB/s)  \\
 		\hline
-		CPU & 5.5\\
-		Cuda 1 & 25.8\\ 
-		Cuda 2 & 237\\
-		Cuda 3 & 0.14?\\
-		Cuda 4 & 41.2\\
-		Cuda 5 & 24.5\\
+		2 & 0.00057 & 2.32 \\
+		3 & 0.00178 & 1.2 \\ 
+		4 & 0.0018 & 0.75 \\
+		5 & 0.002 & 0.55 \\
 	\end{tabular}
-	\caption{Bandwidth for a matrix-vector multiply using different GPUs, with a system size of $N=16384$. }
+	\caption{Latency and Bandwidth for message passing using MPI as a function of number of processes. }
 \end{table}
 
+From here we see that as we increase the number of processes, the latency increases and the bandwidth decreases. This is to be expected as it takes longer to communicate when processes are not on the same core. 
 
-\item {\bf 2D Jacobi Method on a GPU} Here we apply Jacobi iteration to solve the 2D Laplace equation on the square with homogeneous Dirichlet boundary conditions both on a CPU and GPU. The residuals are computed from the CPU and GPU to see if we get the same result. We then compare the time each takes to perform $1000$ iterations of the method on a $1000\times 1000$ matrix. 
+I attempted to run MPI over a network using the different Crunchy servers, but the code kept hanging. I am not sure why.
 
-\begin{table}[h!] 
-	\centering
-	\begin{tabular}{c | c}
-		Machine & Time (s)  \\
+
+\item {\bf Project}
+
+\begin{center}
+	\begin{tabular} {|c|p{9cm}|p{2cm}|}
 		\hline
-		CPU & 2.57\\
-		Cuda 1 & 0.2\\ 
-		Cuda 2 & 0.1\\
-		Cuda 3 & 0.85\\
-		Cuda 4 & 0.16\\
-		Cuda 5 & 0.24\\
+		\multicolumn{3}{|c|}{\bf Project: A parallel implementation of the IB method} \\
+		\hline
+		Week & Work & Who  \\ \hline \hline
+		04/15-04/21 & Think about
+		algorithm. How to do spread in parallel? OpenMP or MPI? Which FFT library to use? &  AT, TG, OM \\ \hline
+		04/22-04/28 & Write OpenMP version of spread and interpolate & OM \\ \hline
+		04/22-04/28 & Research OpenMP, MPI FFTW algorithms & TG, AT \\ \hline
+		04/29-05/05 & Write parallel fluid solver & TG, AT \\ \hline
+		04/29-05/05 & Write C++ initialization routines, force calculation & OM \\ \hline
+		05/06-05/12 & Finish implementation, think about possible GPU or MPI implementation of spread and interpolate & AT, TG, OM \\ \hline
+		05/13-05/19 & Run scalability tests, work on
+		presentation slides and report  & TG, AT, OM \\ \hline
 	\end{tabular}
-	\caption{Time taken (in seconds) for the Jacobi method for $1000$ iterations on a $1000\times 1000$ system. }
-\end{table}
-
-Looking at the results, we see in the best case (CUDA2), a speedup of almost 20 to 50 times the performance on a CPU using OpenMP with $8$ threads, which is quite significant. On average over the GPUs, we see a speedup of about $5$ to $8$ times the CPU performance. I am not sure why, but on CUDA3, my result was incorrect and the computation took longer than the CPU (matrix-vector multiply). This is strange considering my code works fine on the other systems. 
-
-
-
-\item {\bf Project Proposal} I will be working with Ondrej Maxian and Tristan Goodwill broadly on "Parallel Algorithms for CFD". We will begin by writing a solver for Poisson's Equation on a periodic domain using a parallel FFT. We will then implement a parallel force spreading and grid interpolation scheme to use with the Immersed Boundary Method on a periodic domain. 
+\end{center} 
 
 
 
