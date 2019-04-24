@@ -1,5 +1,5 @@
 CC = mpicc # or mpicxx
-CFLAGS = -O3 -march=native -fopenmp
+CFLAGS = -O3 -march=native -fopenmp -std=c99
 
 TARGETS = $(basename $(wildcard *.c))
 
