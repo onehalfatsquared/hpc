@@ -6,15 +6,12 @@ double time_cycle(long N, long Nsize, MPI_Comm comm) {
 	//declare ranks for mpi
   int rank, size;
   MPI_Comm_rank(comm, &rank);
-  MPI_Comm_size( MPI_COMM_WORLD, &size );
+  MPI_Comm_size( comm, &size );
 
-  printf("Num processes: %d\n", size);
 
   //define the integer to be passed around on process 0
-  int num;
-  if (rank == 0) {
-  	num = 0;
-  }
+  int* num = (int*) malloc(Nsize*sizeof(int));
+    if (rank == 0) for (int i = 0; i < Nsize; i++) num[i] = 0;
 
   //define number of processes to use
   int num_proc = size;
@@ -29,26 +26,27 @@ double time_cycle(long N, long Nsize, MPI_Comm comm) {
 
     //pass around the data
     if (rank == 0) { //at 0, send to 1, then receieve from the end
-    	MPI_Send(&num, Nsize, MPI_INT, rank+1, repeat, comm);
-    	MPI_Recv(&num, Nsize, MPI_INT, num_proc-1, repeat, comm, &status);
+    	MPI_Send(num, Nsize, MPI_INT, rank+1, repeat, comm);
+    	MPI_Recv(num, Nsize, MPI_INT, num_proc-1, repeat, comm, &status);
     }
     else { //now, recieve, modify, then send. check for last proc
-    	MPI_Recv(&num, Nsize, MPI_INT, rank-1, repeat, comm, &status);
-    	num += rank;
+    	MPI_Recv(num, Nsize, MPI_INT, rank-1, repeat, comm, &status);
+    	num[0] += rank; 
     	if (rank < num_proc - 1) {
-    		MPI_Send(&num, Nsize, MPI_INT, rank+1, repeat, comm);
+    		MPI_Send(num, Nsize, MPI_INT, rank+1, repeat, comm);
     	}
     	else {
-    		MPI_Send(&num, Nsize, MPI_INT, 0, repeat, comm);
+    		MPI_Send(num, Nsize, MPI_INT, 0, repeat, comm);
     	}
     }
   }
   //time the loops
+  MPI_Barrier(comm);
   tt = MPI_Wtime() - tt;
 
   //get the error
   int soln = N*num_proc*(num_proc-1)/2;
-  printf("Error in sum: %d\n", soln - num);
+  if (rank == 0 && Nsize == 1) printf("Error in sum: %d\n", soln - num[0]);
 
   return tt;
 }
@@ -66,24 +64,28 @@ int main(int argc, char** argv) {
   int N = atoi(argv[1]);
 
   //declare rank and communication
-  int rank;
+  int rank, size;
   MPI_Comm comm = MPI_COMM_WORLD;
   MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &size );
 
-  printf("Hello from proc %d\n", rank);
+  //check if size is greater than 1
+  if (size == 1) {
+    printf("Cannot exhange data with only one process. Exiting...\n");
+    return 0;
+  }
+  else {
+    if (rank == 0) printf("Using %d processes.\n", size);
+  }
 
   //do timing for passing single integer
-  long Nrepeat = 1000;
   double tt = time_cycle(N, 1, comm);
-  if (!rank) printf("cycle latency: %e ms\n", tt/Nrepeat * 1000);
+  if (!rank) printf("cycle latency: %e ms\n", tt/N * 1000);
 
   //do timing for passing an array
-  /*
-  Nrepeat = 10000;
   long Nsize = 1000000;
-  tt = time_pingpong(N, Nsize, comm);
-  if (!rank) printf("pingpong bandwidth: %e GB/s\n", (Nsize*Nrepeat)/tt/1e9);
-  */
+  tt = time_cycle(N, Nsize, comm);
+  if (!rank) printf("cycle bandwidth: %e GB/s\n", (Nsize*N)/tt/1e9);
 
   //finalize mpi
   MPI_Finalize();

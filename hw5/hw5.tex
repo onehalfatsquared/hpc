@@ -1,0 +1,114 @@
+\documentclass[11pt]{article}
+
+%% FONTS
+%% To get the default sans serif font in latex, uncomment following line:
+ \renewcommand*\familydefault{\sfdefault}
+%%
+%% to get Arial font as the sans serif font, uncomment following line:
+%% \renewcommand{\sfdefault}{phv} % phv is the Arial font
+%%
+%% to get Helvetica font as the sans serif font, uncomment following line:
+% \usepackage{helvet}
+\usepackage[small,bf,up]{caption}
+\renewcommand{\captionfont}{\footnotesize}
+\usepackage[left=1in,right=1in,top=1in,bottom=1in]{geometry}
+\usepackage{graphics,epsfig,graphicx,float,subfigure,color}
+\usepackage{amsmath,amssymb,amsbsy,amsfonts,amsthm}
+\usepackage{url}
+\usepackage{boxedminipage}
+\usepackage[sf,bf,tiny]{titlesec}
+ \usepackage[plainpages=false, colorlinks=true,
+   citecolor=blue, filecolor=blue, linkcolor=blue,
+   urlcolor=blue]{hyperref}
+\usepackage{enumitem}
+
+\newcommand{\todo}[1]{\textcolor{red}{#1}}
+% see documentation for titlesec package
+% \titleformat{\section}{\large \sffamily \bfseries}
+\titlelabel{\thetitle.\,\,\,}
+
+\newcommand{\bs}{\boldsymbol}
+\newcommand{\alert}[1]{\textcolor{red}{#1}}
+\setlength{\emergencystretch}{20pt}
+
+\begin{document}
+
+
+\begin{center}
+  \vspace*{-2cm}
+{\small MATH-GA 2012.001 and CSCI-GA 2945.001, Georg Stadler \&
+  Dhairya Malhotra (NYU Courant)}
+\end{center}
+\vspace*{.5cm}
+\begin{center}
+\large \textbf{%%
+High Performance Computing \\
+Anthony Trubiano \\
+Assignment 4 (due April 15, 2019) }
+\end{center}
+
+% ****************************
+
+\noindent {\bf Note:} All CPU computations were performed with an Intel Core i7-8750H Processor with base frequency 2.20 GHz. The maximum main memory bandwidth is 41.8 GB/s. At 16 double 
+precision operations per cycle, the theoretical max flop rate would be about 35.2 GFlops/s. It has $6$ cores and can reach $12$ threads through hyper-threading. 
+
+\begin{enumerate}
+% --------------------------
+
+\item {\bf Matrix Vector Multiplication on a GPU} We perform a matrix vector multiplication both on a CPU and GPU and compare the bandwidth achieved on each. We compare CPU and GPU results to check for errors. We use a vector size of $N = 16384$. The CPU implementation uses OpenMP on my machine with $8$ threads.
+
+\begin{table}[h!] 
+	\centering
+	\begin{tabular}{c | c}
+		Machine & Bandwidth (GB/s)  \\
+		\hline
+		CPU & 5.5\\
+		Cuda 1 & 25.8\\ 
+		Cuda 2 & 237\\
+		Cuda 3 & 0.14?\\
+		Cuda 4 & 41.2\\
+		Cuda 5 & 24.5\\
+	\end{tabular}
+	\caption{Bandwidth for a matrix-vector multiply using different GPUs, with a system size of $N=16384$. }
+\end{table}
+
+
+\item {\bf 2D Jacobi Method on a GPU} Here we apply Jacobi iteration to solve the 2D Laplace equation on the square with homogeneous Dirichlet boundary conditions both on a CPU and GPU. The residuals are computed from the CPU and GPU to see if we get the same result. We then compare the time each takes to perform $1000$ iterations of the method on a $1000\times 1000$ matrix. 
+
+\begin{table}[h!] 
+	\centering
+	\begin{tabular}{c | c}
+		Machine & Time (s)  \\
+		\hline
+		CPU & 2.57\\
+		Cuda 1 & 0.2\\ 
+		Cuda 2 & 0.1\\
+		Cuda 3 & 0.85\\
+		Cuda 4 & 0.16\\
+		Cuda 5 & 0.24\\
+	\end{tabular}
+	\caption{Time taken (in seconds) for the Jacobi method for $1000$ iterations on a $1000\times 1000$ system. }
+\end{table}
+
+Looking at the results, we see in the best case (CUDA2), a speedup of almost 20 to 50 times the performance on a CPU using OpenMP with $8$ threads, which is quite significant. On average over the GPUs, we see a speedup of about $5$ to $8$ times the CPU performance. I am not sure why, but on CUDA3, my result was incorrect and the computation took longer than the CPU (matrix-vector multiply). This is strange considering my code works fine on the other systems. 
+
+
+
+\item {\bf Project Proposal} I will be working with Ondrej Maxian and Tristan Goodwill broadly on "Parallel Algorithms for CFD". We will begin by writing a solver for Poisson's Equation on a periodic domain using a parallel FFT. We will then implement a parallel force spreading and grid interpolation scheme to use with the Immersed Boundary Method on a periodic domain. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\end{enumerate}
+
+\end{document}
