@@ -56,7 +56,15 @@ void setDirections(int i, int j, int N, double* vec, double& left, double& right
 	//handle middle case
 	else {
 		down = vec[toIndex(i-1, j, N)]; up = vec[toIndex(i+1, j, N)];
-		left = vec[toIndex(i, j-1, N)]; right = vec[toIndex(i, j+1, N)];
+		if (j == 0) {
+			left = 0; right = vec[toIndex(i, j+1, N)];
+		}
+		else if (j == N-1) {
+			right = 0; left = vec[toIndex(i, j-1, N)];
+		}
+		else {
+			left = vec[toIndex(i, j-1, N)]; right = vec[toIndex(i, j+1, N)];
+		}
 	}
 }
 
@@ -210,6 +218,8 @@ int main(int argc, char** argv) {
   //compute a residual as a check
   double r = computeRes(N, sol, f);
   printf("Residual : %3f\n", r);
+
+  printf("Ex: %f\n", sol[0]);
 
   //free the memory
   free(f); free(sol);
