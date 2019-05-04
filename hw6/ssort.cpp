@@ -45,6 +45,11 @@ int main( int argc, char *argv[]) {
   }
   printf("rank: %d, first entry: %d\n", rank, vec[0]);
 
+
+  /* timing */
+  MPI_Barrier(MPI_COMM_WORLD);
+  double tt = MPI_Wtime();
+
   // sort locally
   std::sort(vec, vec+N);
 
@@ -114,6 +119,13 @@ int main( int argc, char *argv[]) {
 
   // do a local sort of the received data
   std::sort(final, final + S);
+
+  /* timing */
+  MPI_Barrier(MPI_COMM_WORLD);
+  double elapsed = MPI_Wtime() - tt;
+  if (0 == rank) {
+    printf("Time elapsed is %f seconds.\n", elapsed);
+  }
 
   // every process writes its result to a file
   FILE* fd = NULL;

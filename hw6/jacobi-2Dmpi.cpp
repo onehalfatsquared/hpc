@@ -284,12 +284,17 @@ int main(int argc, char * argv[]){
   	fprintf(stderr, "N is not divisible by 2^j.\n");
   	MPI_Abort(MPI_COMM_WORLD, 0);
   }
+  if (mpirank == 0) printf("Nl is %d\n", Nl);
 
   /* get name of host running MPI process */
   char processor_name[MPI_MAX_PROCESSOR_NAME];
   int name_len;
   MPI_Get_processor_name(processor_name, &name_len);
   printf("Rank %d/%d running on %s.\n", mpirank, p, processor_name);
+
+  /* timing */
+  MPI_Barrier(MPI_COMM_WORLD);
+	double tt = MPI_Wtime();
 
   //parameters work out, make a local grid, initialize to 0. initialize f to 1
   double* lu = new double[(Nl+2)*(Nl+2)];
@@ -301,11 +306,16 @@ int main(int argc, char * argv[]){
 	//call jacobi method
   jacobi2Dmpi(N, Nl, max_iters, lu, lf);
 
-
 	//if (mpirank == 0)printf("Ex value: %f, %f, %f, %f\n", lu[5], lu[6], lu[9], lu[10]);
 
 	//free memory and finalize mpi
   delete []lu; 
+  /* timing */
+  MPI_Barrier(MPI_COMM_WORLD);
+  double elapsed = MPI_Wtime() - tt;
+  if (0 == mpirank) {
+    printf("Time elapsed is %f seconds.\n", elapsed);
+	}
   MPI_Finalize();
 	return 0;
 }
